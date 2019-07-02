@@ -48,19 +48,19 @@ void *parse_command(void *p) {
 		for (int i = 0; i < online_users_count; i++) {
 			printf("%s ", pcp->users[i].ip);
 			printf("%d\n", pcp->users[i].port);
-			sprintf(data, "%s%d ", data, i);
+			// sprintf(data, "%s%d ", data, i);
 			// strcat(data, pcp->users[i].ip);
-			sprintf(data, "%s%s", data, pcp->users[i].ip);
+			sprintf(data, "%s%d %s %d\n", data, i, pcp->users[i].ip, pcp->users[i].port);
 			// n = send(pcp->sd, pcp->users[i].ip, sizeof(pcp->users[i].ip), MSG_NOSIGNAL);
 			// if (n < 1) { perror("send"); exit(1); }
-			sprintf(data, "%s %d\n", data, pcp->users[i].port);
+			// sprintf(data, "%s %d\n", data, pcp->users[i].port);
 			// n = send(pcp->sd, data, sizeof(pcp->users[i].port), MSG_NOSIGNAL);
 			// if (n < 1) { perror("send"); exit(1); }
 			len += sizeof(pcp->users[i].ip);
 			len += sizeof(pcp->users[i].port);
 			len += 6;
 		}
-		n = send(pcp->sd, data, len, MSG_NOSIGNAL);
+		n = send(pcp->sd, data, sizeof(data), MSG_NOSIGNAL);
 		if (n < 1) { perror("send"); exit(1); }
 		// data[len] = '\0';
 		// int n = send(pcp->sd, data, len, MSG_NOSIGNAL);

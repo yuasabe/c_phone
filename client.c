@@ -87,7 +87,7 @@ int show_online_users(int s) {
 
 void client_start() {
 	// connect to server, initiate control socket
-	char *server_ip = "127.0.0.1";
+	char *server_ip = "192.168.100.2";
 
 	int s = socket(PF_INET, SOCK_STREAM, 0);
 	if(s==-1) { perror("socket"); exit(1); }
