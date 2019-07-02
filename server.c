@@ -18,7 +18,7 @@ typedef struct {
 
 typedef struct {
 	int sd;
-	char *ip;
+	char ip[20];
 	int port;
 } user;
 
@@ -170,7 +170,8 @@ void server_start_multi(void *p) {
 					getpeername(client_socket[i], (struct sockaddr*)&addr, (socklen_t*)&len_sd);
 					printf("[%d] %s:%d\n", client_socket[i], inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
 					online_users[i].sd = client_socket[i];
-					online_users[i].ip = inet_ntoa(addr.sin_addr);
+					strcpy(online_users[i].ip, inet_ntoa(addr.sin_addr));
+					// online_users[i].ip = inet_ntoa(addr.sin_addr);
 					online_users[i].port = ntohs(addr.sin_port);
 				}
 			}
