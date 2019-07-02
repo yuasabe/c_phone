@@ -32,12 +32,20 @@ int online_users_count = 0;
 
 void *parse_command(void *p) {
 	parse_command_params *pcp = (parse_command_params*)p;
-	// int i = 0;
+	int i = 0;
+	char text[10];
 	if (strncmp(pcp->command, "<call>", 6) == 0) {
-		// while((text[i++] = command[6+i]) != '<');
-		// text[i-1] = '\0';
+		printf("incoming call initialization\n");
+		while((text[i++] = pcp->command[6+i]) != '<');
+		text[i-1] = '\0';
 		// strncpy(text, &command[6], 15);
 		// return 0;
+
+		int call_users_index = atoi(text);
+		printf("sd:%d wants to call sd:%d (%s:%d)\n", pcp->sd, pcp->users[call_users_index].sd, pcp->users[call_users_index].ip, pcp->users[call_users_index].port );
+
+		int n = send(pcp->sd, text, sizeof(text), MSG_NOSIGNAL);
+		if (n < 1) { perror("send"); exit(1); }
 	}
 	if (strncmp(pcp->command, "<list_users>", 12) == 0) {
 		printf("Sending users list data\n");
