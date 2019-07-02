@@ -11,6 +11,8 @@
 #include <pthread.h>
 // #include "data_serialization.c"
 
+#define MAX_CLIENTS 30
+
 typedef struct {
 	int port;
 	int s;
@@ -29,6 +31,7 @@ typedef struct {
 } parse_command_params;
 
 int online_users_count = 0;
+int client_socket[MAX_CLIENTS];
 
 void *parse_command(void *p) {
 	parse_command_params *pcp = (parse_command_params*)p;
@@ -93,7 +96,6 @@ void *recv_play(void *p) {
 	pclose(fp_play);
 	return 0;
 }
-
 //  rec and send data
 void *rec_send(void *p) {
 	int n;
@@ -111,17 +113,36 @@ void *rec_send(void *p) {
 	return 0;
 }
 
+user *update_online_users(user *online_users) {
+	free(online_users);
+	user *online_users_new = malloc(sizeof(user)*MAX_CLIENTS);
+	struct sockaddr_in addr;
+	socklen_t len_sd = sizeof(struct sockaddr_in);
+	int i = 0;
+	for (int j = 0; j < MAX_CLIENTS; j++) {
+		if (client_socket[j] != 0 ) {
+			getpeername(client_socket[j], (struct sockaddr*)&addr, (socklen_t*)&len_sd);
+			printf("[%d] %s:%d\n", client_socket[j], inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+			online_users[i].sd = client_socket[j];
+			strcpy(online_users[i].ip, inet_ntoa(addr.sin_addr));
+			online_users[i].port = ntohs(addr.sin_port);
+			i++;
+		}
+	}
+	return online_users_new;
+}
+
 void server_start_multi(void *p) {
 	printf("Starting server. \n");
 	server_params *sp = (server_params*)p;
 	int port = sp->port;
-	int client_socket[30], max_clients = 30, opt = 1;
+	int opt = 1;
 
 	// online_users
-	user *online_users = malloc(sizeof(user)*max_clients);
+	user *online_users = malloc(sizeof(user)*MAX_CLIENTS);
 
 	fd_set readfds;
-	for (int i = 0; i < max_clients; i++) {
+	for (int i = 0; i < MAX_CLIENTS; i++) {
 		client_socket[i] = 0;
 	}
 	int ss = socket(PF_INET, SOCK_STREAM, 0);
@@ -144,7 +165,7 @@ void server_start_multi(void *p) {
 		FD_ZERO(&readfds);
 		FD_SET(ss, &readfds);
 		max_sd = ss;
-		for (int i = 0; i < max_clients; i++) {
+		for (int i = 0; i < MAX_CLIENTS; i++) {
 			sd = client_socket[i];
 			if (sd > 0)
 				FD_SET(sd, &readfds);
@@ -155,6 +176,7 @@ void server_start_multi(void *p) {
 		int activity = select(max_sd + 1, &readfds, NULL, NULL, NULL);
 		if ((activity < 0)) { perror("select");exit(1); }
 
+		// new connection
 		if (FD_ISSET(ss, &readfds)) {   
 			struct sockaddr_in client_addr;
 			socklen_t len = sizeof(struct sockaddr_in);
@@ -162,7 +184,7 @@ void server_start_multi(void *p) {
 			int s = accept(ss, (struct sockaddr *) &client_addr, &len);
 			if (s == -1) { perror("accept"); exit(1); }
 			printf("Incoming connection: %d\n", s);
-			for (int i = 0; i < max_clients; i++) {
+			for (int i = 0; i < MAX_CLIENTS; i++) {
 				if( client_socket[i] == 0 ) {
 					client_socket[i] = s;
 					printf("Adding to list of sockets as %d\n" , i);
@@ -170,45 +192,25 @@ void server_start_multi(void *p) {
 				}
 			}
 			online_users_count++;
-			printf("Connected sd: \n");
-			struct sockaddr_in addr;
-			socklen_t len_sd = sizeof(struct sockaddr_in);
-			for (int i = 0; i < max_clients; i++) {
-				if (client_socket[i] != 0 ) {
-					getpeername(client_socket[i], (struct sockaddr*)&addr, (socklen_t*)&len_sd);
-					printf("[%d] %s:%d\n", client_socket[i], inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-					online_users[i].sd = client_socket[i];
-					strcpy(online_users[i].ip, inet_ntoa(addr.sin_addr));
-					// online_users[i].ip = inet_ntoa(addr.sin_addr);
-					online_users[i].port = ntohs(addr.sin_port);
-				}
-			}
+			online_users = update_online_users(online_users);
 		} // end of new initial connection
-
 
 		// process all clients
 		int valread;
 		char buffer[1024];
-		for (int i = 0; i < max_clients; i++) {
+		for (int i = 0; i < MAX_CLIENTS; i++) {
 			sd = client_socket[i];
 			if(FD_ISSET(sd, &readfds)) {
-				// if client disconnected
 				if ((valread = read(sd, buffer, 1024)) == 0) {
-					// getpeername(sd, (struct sockaddr*)&addr, (socklen_t*)&len);
-					// printf("Host disconnected, %s:%d \n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+					// if client disconnected
 					printf("Host disconnected, %d\n", sd);
 					close(sd);
 					client_socket[i] = 0;
-					printf("Connected sd: [");
-					for (int i = 0; i < max_clients; i++) {
-						if (client_socket[i] != 0 ) {
-							printf("%d, ", client_socket[i]);
-						}
-					}
-					printf("]\n");
 					online_users_count--;
+					online_users = update_online_users(online_users);
 				} else {
-					// on each client sd
+					// constantly listen in for every client
+
 					// pthread_t recv_play_tid;
 					// pthread_create(&recv_play_tid, NULL, &recv_play, &sd);
 					// pthread_t rec_send_tid;
