@@ -101,7 +101,7 @@ int call(int s, int call_index) {
 
 void client_start() {
 	// connect to server, initiate control socket
-	char *server_ip = "192.168.100.2";
+	char *server_ip = "192.168.10.15";
 
 	int s = socket(PF_INET, SOCK_STREAM, 0);
 	if(s==-1) { perror("socket"); exit(1); }
