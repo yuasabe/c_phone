@@ -85,6 +85,20 @@ int show_online_users(int s) {
 	return 0;
 }
 
+int call(int s, int call_index) {
+	char content[30];
+	char data[1024];
+	sprintf(content, "<call>%d</call>", call_index);
+	int n = send(s, content, sizeof(content), MSG_NOSIGNAL);
+	if (n < 0) { perror("send"); return -1; }
+	
+	n = recv(s, data, sizeof(data), MSG_NOSIGNAL);
+	if (n < 0) { perror("recv"); return -1; }
+	printf("Calling: %s\n", data);
+
+	return 0;
+}
+
 void client_start() {
 	// connect to server, initiate control socket
 	char *server_ip = "192.168.100.2";
@@ -100,21 +114,26 @@ void client_start() {
 	int ret = connect(s, (struct sockaddr *)&addr, sizeof(addr));
 	if(ret!=0){ perror("connect"); close(s); exit(1); }
 
-	int user_input;
+	int user_input, user_input_call;
 
 	while(1) {
 		printf("What would you like to do? \n[1] Call \n[2] Join Call\n[3] See online users\n[4] Exit\n");
 		scanf("%d", &user_input);
 		switch(user_input) {
 			case 1:
-			printf("Call selected\n");
+			printf("Who would you like to call?\n");
+			int n = show_online_users(s);
+			if (n < 0) {printf("list_user command send error\n");exit(1);}
+			scanf("%d", &user_input_call);
+			n = call(s, user_input_call);
+			if (n < 0) { printf("call error\n"); exit(1); }
 			break;
 			case 2:
 			printf("Join call selected\n");
 			break;
 			case 3:
 			printf("Showing online users: \n");
-			int n = show_online_users(s);
+			n = show_online_users(s);
 			if (n < 0) {printf("list_user command send error\n");exit(1);}
 			break;
 			case 4:
