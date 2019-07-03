@@ -62,11 +62,13 @@ void *call(void *p) {
 
 	char *message = "hello world!";
 	for (int i = 0; i < g.sd_count; i++) {
+		printf("%d\n", g.sd[i]);
 		struct sockaddr_in addr;
 		socklen_t len_sd = sizeof(struct sockaddr_in);
 		getpeername(g.sd[i], (struct sockaddr*)&addr, (socklen_t*)&len_sd);
-		char *ip_addr;
+		char ip_addr[20];
 		strcpy(ip_addr, inet_ntoa(addr.sin_addr));
+		printf("connecting to data socket on %s\n", ip_addr);
 
 		int s = socket(PF_INET, SOCK_STREAM, 0);
 		if(s==-1) { perror("socket"); exit(1); }
@@ -74,14 +76,28 @@ void *call(void *p) {
 		addr.sin_family = AF_INET;
 		int ip_ret = inet_aton(ip_addr, &addr.sin_addr);
 		if(ip_ret==0){ perror("inet_aton"); close(s); exit(1); }
-		addr.sin_port = htons(50000);
+		addr.sin_port = htons(50001);
 		int ret = connect(s, (struct sockaddr *)&addr, sizeof(addr));
 		if(ret!=0){ perror("connect"); close(s); exit(1); }
 
-		int n = send(s, message, sizeof(message), 0);
-		if (n < 0) { perror("send"); }
+		//int n = send(s, message, sizeof(message), 0);
+		//if (n < 0) { perror("send"); }
 
 		g.data_sd[i] = s;
+	}
+
+	unsigned char data;
+	while(1) {
+		for (int i = 0; i < g.sd_count; ++i){
+			int n = recv(g.data_sd[i], &data, 1, 0);
+			if (n < 1) {perror("recv"); break; }
+			for (int j = 0; j < g.sd_count; j++) {
+				if (i != j) {
+					n = send(g.data_sd[j], &data, 1, 0);
+					if (n < 1) {perror("send"); break; }
+				}
+			}
+		}
 	}
 }
 

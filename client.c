@@ -229,12 +229,13 @@ void *data_transmission() {
 		if (s == -1) { perror("accept"); exit(1); }
 		// printf("Incoming connection: %d\n", s);
 		data_sd = s;
-		unsigned char data;
-		int n;
-		while(1) {
-			n = recv(data_sd, &data, 1, MSG_NOSIGNAL);
-			if (n != 1) { break; }
-		}
+
+		pthread_t recv_play_tid;
+		pthread_create(&recv_play_tid, NULL, recv_play, &data_sd);
+
+		pthread_t rec_send_tid;
+		pthread_create(&rec_send_tid, NULL, rec_send, &data_sd);
+
 		// close(control_sd);
 	}
 }
