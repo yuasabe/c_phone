@@ -12,6 +12,7 @@
 // #include "data_serialization.c"
 
 #define MAX_CLIENTS 30
+#define NUMTHREADS 20;
 
 typedef struct {
 	int port;
@@ -25,6 +26,15 @@ typedef struct {
 } user;
 
 typedef struct {
+	int id;
+	int sd[10];
+	int sd_count;
+	pthread_t thread;
+	int is_active;
+	int data_sd[10];
+} group;
+
+typedef struct {
 	char *command;
 	user *users;
 	int sd;
@@ -32,52 +42,115 @@ typedef struct {
 
 int online_users_count = 0;
 int client_socket[MAX_CLIENTS];
+pthread_t control_tid;
+// int group_count = 0;
+// int group_active[10] = {0,0,0,0,0,0,0,0,0,0};
+group *groups;
+
+// pthread_t call_threads[NUMTHREADS];
+// int call_threads_count = 0;
+
+// void *start_call(void *p) {
+
+// }
+
+void *call(void *p) {
+	int group_index = *((int*)p);
+	group g = groups[group_index];
+
+	printf("call group thread for %d\n", group_index);
+
+	char *message = "hello world!";
+	for (int i = 0; i < g.sd_count; i++) {
+		struct sockaddr_in addr;
+		socklen_t len_sd = sizeof(struct sockaddr_in);
+		getpeername(g.sd[i], (struct sockaddr*)&addr, (socklen_t*)&len_sd);
+		char *ip_addr;
+		strcpy(ip_addr, inet_ntoa(addr.sin_addr));
+
+		int s = socket(PF_INET, SOCK_STREAM, 0);
+		if(s==-1) { perror("socket"); exit(1); }
+
+		addr.sin_family = AF_INET;
+		int ip_ret = inet_aton(ip_addr, &addr.sin_addr);
+		if(ip_ret==0){ perror("inet_aton"); close(s); exit(1); }
+		addr.sin_port = htons(50000);
+		int ret = connect(s, (struct sockaddr *)&addr, sizeof(addr));
+		if(ret!=0){ perror("connect"); close(s); exit(1); }
+
+		int n = send(s, message, sizeof(message), 0);
+		if (n < 0) { perror("send"); }
+
+		g.data_sd[i] = s;
+	}
+}
 
 void *parse_command(void *p) {
 	parse_command_params *pcp = (parse_command_params*)p;
-	int i = 0;
-	char text[10];
-	if (strncmp(pcp->command, "<call>", 6) == 0) {
-		printf("incoming call initialization\n");
-		while((text[i++] = pcp->command[6+i]) != '<');
-		text[i-1] = '\0';
-		// strncpy(text, &command[6], 15);
-		// return 0;
 
-		int call_users_index = atoi(text);
-		printf("sd:%d wants to call sd:%d (%s:%d)\n", pcp->sd, pcp->users[call_users_index].sd, pcp->users[call_users_index].ip, pcp->users[call_users_index].port );
+	if (strncmp(pcp->command, "3", 1) == 0) { // call request
+		int j = 2;
+		char call_to_sd_char[5];
+		while(pcp->command[j] != '\0') {
+			call_to_sd_char[j-2] = pcp->command[j];
+			j++;
+		}
+		call_to_sd_char[j-2] = '\0';
+		int call_users_index = atoi(call_to_sd_char);
 
-		int n = send(pcp->sd, text, sizeof(text), MSG_NOSIGNAL);
+		if (pcp->sd == pcp->users[call_users_index].sd) {
+			char response[4] = "BAD";
+			int n = send(pcp->sd, response, sizeof(response), MSG_NOSIGNAL);
+			if (n < 1) { perror("send"); exit(1); }
+			pthread_exit(NULL);
+		}
+
+		printf("Incoming call request from sd:%d to sd:%d\n", pcp->sd, pcp->users[call_users_index].sd);
+
+		char response[3] = "OK";
+
+		int n = send(pcp->sd, response, sizeof(response), MSG_NOSIGNAL);
 		if (n < 1) { perror("send"); exit(1); }
+
+		// 0. start new thread for this Group
+		// 1. create new sockets with pcp->sd and pcp->users[call_users_index].sd
+		// 2. create group and add these two users
+		// 3. for each socket in group, read from socket and sent to every other
+		// 4. 
+
+		// update groups array
+		for (int n = 0; n < 10; n++) {
+			if (groups[n].is_active == 0) {
+				groups[n].id = n;
+				groups[n].sd[groups[n].sd_count] = pcp->sd;
+				groups[n].sd_count++;
+				groups[n].sd[groups[n].sd_count] = pcp->users[call_users_index].sd;
+				groups[n].sd_count++;
+				groups[n].is_active = 1;
+				pthread_create(&(groups[n].thread), NULL, call, &n);
+				printf("updated groups array and started group thread\n");
+				break;
+			} else {
+				printf("groups full\n");
+			}
+		}
 	}
-	if (strncmp(pcp->command, "<list_users>", 12) == 0) {
+
+	if (strncmp(pcp->command, "2", 1) == 0) {
 		printf("Sending users list data\n");
 		// user *ptr = pcp->users;
 		char data[1024];
-		int len = 0;
 		int n = 0;
 		for (int i = 0; i < online_users_count; i++) {
 			printf("%s ", pcp->users[i].ip);
 			printf("%d\n", pcp->users[i].port);
-			// sprintf(data, "%s%d ", data, i);
-			// strcat(data, pcp->users[i].ip);
 			sprintf(data, "%s%d %s %d\n", data, i, pcp->users[i].ip, pcp->users[i].port);
-			// n = send(pcp->sd, pcp->users[i].ip, sizeof(pcp->users[i].ip), MSG_NOSIGNAL);
-			// if (n < 1) { perror("send"); exit(1); }
-			// sprintf(data, "%s %d\n", data, pcp->users[i].port);
-			// n = send(pcp->sd, data, sizeof(pcp->users[i].port), MSG_NOSIGNAL);
-			// if (n < 1) { perror("send"); exit(1); }
-			len += sizeof(pcp->users[i].ip);
-			len += sizeof(pcp->users[i].port);
-			len += 6;
 		}
 		n = send(pcp->sd, data, sizeof(data), MSG_NOSIGNAL);
 		if (n < 1) { perror("send"); exit(1); }
-		// data[len] = '\0';
-		// int n = send(pcp->sd, data, len, MSG_NOSIGNAL);
-		// printf("%d bytes send to user %d\n", n, pcp->sd);
-		// if (n < 1) { perror("send"); exit(1); }
 	}
+
+	return 0;
 }
 
 // receive data and play
@@ -132,14 +205,17 @@ user *update_online_users(user *online_users) {
 	return online_users_new;
 }
 
-void server_start_multi(void *p) {
+void server_start() {
 	printf("Starting server. \n");
-	server_params *sp = (server_params*)p;
-	int port = sp->port;
+	int port = 50000;
 	int opt = 1;
 
 	// online_users
 	user *online_users = malloc(sizeof(user)*MAX_CLIENTS);
+
+	// start thread for data transmission
+	// pthread_t data_tid;
+	// pthread_create(&data_tid, NULL, data_transmission, NULL);
 
 	fd_set readfds;
 	for (int i = 0; i < MAX_CLIENTS; i++) {
@@ -210,24 +286,20 @@ void server_start_multi(void *p) {
 					online_users = update_online_users(online_users);
 				} else {
 					// constantly listen in for every client
-
-					// pthread_t recv_play_tid;
-					// pthread_create(&recv_play_tid, NULL, &recv_play, &sd);
-					// pthread_t rec_send_tid;
-					// pthread_create(&rec_send_tid, NULL, &rec_send, &sd);
-					// pthread_join(rec_send_tid, NULL);
 					printf("Command from sd:%d : %s \n", sd, buffer);
-					// char text[50];
-				
 					parse_command_params *p = malloc(sizeof(parse_command_params));
 					p->command = buffer;
 					p->users = online_users;
 					p->sd = sd;
-					pthread_t client_command_tid;
-					pthread_create(&client_command_tid, NULL, parse_command, p);
+					pthread_create(&control_tid, NULL, parse_command, p);
 					// parse_command(buffer, sd, online_users);
 					// printf("Command: %s\n", text);
-
+					// send command if user is being called.
+					// char message[20] = "inbound_call___";
+					// if (outbound_call_sd == sd) {
+					// 	printf("send inbound call message to sd:%d\n", sd);
+					// 	send(sd, message, strlen(message), 0);
+					// }
 					// send to all other sockets
 					// for(int j = 0; j < max_clients; j++) {
 					// 	if(j == i) continue;
@@ -242,49 +314,11 @@ void server_start_multi(void *p) {
 	}
 }
 
-// start server
-void *server_start(void *p) {
-	// pthread_detach(pthread_self());
-	server_params *sp = (server_params*)p;
-	int port = sp->port;
-
-	int ss = socket(PF_INET, SOCK_STREAM, 0);
-	if (ss == -1) { perror("socket"); exit(1); }
-	struct sockaddr_in addr;
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(port);
-	addr.sin_addr.s_addr = INADDR_ANY;
-	int ret = bind(ss, (struct sockaddr *) &addr, sizeof(addr));
-	if (ret != 0) { perror("bind"); exit(1); }
-	ret = listen(ss, 10);
-	if (ret != 0) { perror("listen"); exit(1); }
-
-	while (1) {
-		printf("Listening on port %d\n", port);
-
-		struct sockaddr_in client_addr;
-		socklen_t len = sizeof(struct sockaddr_in);
-
-		int s = accept(ss, (struct sockaddr *) &client_addr, &len);
-		if (s == -1) { perror("accept"); exit(1); }
-		printf("Incoming connection: %d\n", s);
-		sp->s = s;
-
-		pthread_t recv_play_tid;
-		pthread_create(&recv_play_tid, NULL, &recv_play, &s);
-
-		pthread_t rec_send_tid;
-		pthread_create(&rec_send_tid, NULL, &rec_send, &s);
-
-		pthread_join(rec_send_tid, NULL);
-		close(s);
-	}
-}
-
 int main(int argc, char **argv) {
-	server_params *sp = malloc(sizeof(server_params));
-	sp->port = 50000;
-	server_start_multi(sp);
+
+	groups = malloc(sizeof(group)*10);
+
+	server_start();
 
 	return 0;
 
