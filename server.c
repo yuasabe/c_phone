@@ -60,7 +60,7 @@ void *call(void *p) {
 
 	printf("call group thread for %d\n", group_index);
 
-	char *message = "hello world!";
+	// char *message = "hello world!";
 	for (int i = 0; i < g.sd_count; i++) {
 		printf("%d\n", g.sd[i]);
 		struct sockaddr_in addr;
@@ -87,9 +87,10 @@ void *call(void *p) {
 	}
 
 	unsigned char data;
+	int n;
 	while(1) {
-		for (int i = 0; i < g.sd_count; ++i){
-			int n = recv(g.data_sd[i], &data, 1, 0);
+		for (int i = 0; i < g.sd_count; i++){
+			n = recv(g.data_sd[i], &data, 1, 0);
 			if (n < 1) {perror("recv"); break; }
 			for (int j = 0; j < g.sd_count; j++) {
 				if (i != j) {
@@ -98,6 +99,7 @@ void *call(void *p) {
 				}
 			}
 		}
+		if (n < 1) { break; }
 	}
 }
 
