@@ -49,12 +49,14 @@ void show_error(gpointer window, char *error_message) {
 void incoming_call_dialog(GtkWindow *parent, gchar *message) {
 	GtkWidget *dialog, *label, *content_area;
 	GtkDialogFlags flags;
+	gint response;
 
 	// Create the widgets
 	flags = GTK_DIALOG_DESTROY_WITH_PARENT;
 	dialog = gtk_dialog_new_with_buttons("Message", parent, flags, "OK", GTK_RESPONSE_NONE, NULL);
 	content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 	label = gtk_label_new(message);
+	gtk_container_add(GTK_CONTAINER(content_area), label);
 
 	// Ensure that the dialog box is destroyed when the user response
 	g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_widget_destroy), dialog);
@@ -62,6 +64,16 @@ void incoming_call_dialog(GtkWindow *parent, gchar *message) {
 	// Add the label, and show everything we've added
 	gtk_container_add(GTK_CONTAINER(content_area), label);
 	gtk_widget_show_all(dialog);
+	printf("incoming_call_dialog displayed\n");
+
+	// response = gtk_dialog_run(GTK_DIALOG(dialog));
+	// if (response == GTK_RESPONSE_YES) {
+	// 	printf("YES was pressed\n");
+	// } else if (response == GTK_RESPONSE_NO) {
+	// 	printf("NO was pressed\n");
+	// }
+
+	// gtk_widget_destroy(dialog);
 }
 
 typedef struct {
