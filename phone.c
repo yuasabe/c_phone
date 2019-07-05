@@ -8,6 +8,8 @@ gcc client_send.c -o client_send $(pkg-config --cflags --libs gtk+-3.0)
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
+#include <netdb.h>
+#include <ifaddrs.h>
 #include <sys/socket.h> 
 #include <netdb.h>
 #include <arpa/inet.h>
@@ -223,17 +225,42 @@ static void cb_button_clicked2(GtkWidget *button2, gpointer data) {
 }
 
 void get_my_ip_address(char *ip_addr, char *host_name) {
+	struct ifaddrs *ifaddr, *ifa;
+	int family, s;
+	char host[NI_MAXHOST];
+
+	if (getifaddrs(&ifaddr) == -1) {
+		perror("getifaddrs");
+		exit(EXIT_FAILURE);
+	}
+
+	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+		family = ifa->ifa_addr->sa_family;
+
+		if (family == AF_INET) {
+			s = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in), host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
+			if (s != 0) {
+				printf("getnameinfo() failed: %s\n", gai_strerror(s));
+				exit(EXIT_FAILURE);
+			}
+			if (strncmp(ifa->ifa_name, "e",1 ) == 0) {
+				strcpy(ip_addr, host);
+			}
+			printf("<Interface>: %s \t <Address> %s\n", ifa->ifa_name, host);
+		}
+	}
 	char hostbuffer[256];
-	char *IPbuffer;
+	// char *IPbuffer;
 	struct hostent *host_entry;
 
 	int i = gethostname(hostbuffer, sizeof(hostbuffer));
 	if (i==-1) {perror("gethostname"); exit(1); }
 	host_entry = gethostbyname(hostbuffer);
 	if (host_entry==NULL) {perror("gethostbyname"); exit(1); }
-	IPbuffer = inet_ntoa(*((struct in_addr*) host_entry->h_addr_list[0]));
-	if (IPbuffer==NULL) {perror("inet_ntoa"); exit(1); }
-	strcpy(ip_addr, IPbuffer);
+	printf("Hostname: %s\n", hostbuffer);
+	// IPbuffer = inet_ntoa(*((struct in_addr*) host_entry->h_addr_list[0]));
+	// if (IPbuffer==NULL) {perror("inet_ntoa"); exit(1); }
+	// strcpy(ip_addr, IPbuffer);
 	strcpy(host_name, hostbuffer);
 }
 
