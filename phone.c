@@ -17,23 +17,18 @@ gcc client_send.c -o client_send $(pkg-config --cflags --libs gtk+-3.0)
 #include <gio/gio.h>
 #include <pthread.h>
 
-// typedef struct main_dialog_type {
-// 	GtkWidget *window;
-// 	GtkWidget *frame;
-// 	GtkWidget *button1;
-// 	GtkWidget *button2;
-// 	GtkWidget *entry;
-// 	GtkWidget *label;
-// 	GtkWidget *grid;
-// 	GtkWidget *notebook;
-// } MainDialog;
-
+GtkWidget *window;
+GtkWidget *button1;
+GtkWidget *button2;
+GtkWidget *label;
+GtkWidget *grid;
+GtkWidget *vbox;
+GtkWidget *hbox;
 GtkWidget *notebook;
 GtkWidget *button_server_end;
 
 void cb_client_call(GtkWidget *widget, gpointer *data);
 
-// struct for moving GtkWidget parameters
 typedef struct {
 	int i;
 	GtkWidget *entry_client[4];
@@ -49,17 +44,31 @@ void show_error(gpointer window, char *error_message) {
 	gtk_widget_destroy(dialog);
 }
 
+void incoming_call_dialog(GtkWindow *parent, gchar *message) {
+	GtkWidget *dialog, *label, *content_area;
+	GtkDialogFlags flags;
+
+	// Create the widgets
+	flags = GTK_DIALOG_DESTROY_WITH_PARENT;
+	dialog = gtk_dialog_new_with_buttons("Message", parent, flags, "OK", GTK_RESPONSE_NONE, NULL);
+	content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+	label = gtk_label_new(message);
+
+	// Ensure that the dialog box is destroyed when the user response
+	g_signal_connect_swapped(dialog, "response", G_CALLBACK(gtk_widget_destroy), dialog);
+
+	// Add the label, and show everything we've added
+	gtk_container_add(GTK_CONTAINER(content_area), label);
+	gtk_widget_show_all(dialog);
+}
+
 typedef struct {
 	int port;
 	int s;
 } server_params;
 
 void *server_start(void *p) {
-	// Start server, listen on port
-	pthread_detach(pthread_self());
-	// int port = (int)*((int*)p);
-	server_params *sp = (server_params*)p;
-	int port = sp->port;
+	int port = 60000;
 
 	int ss = socket(PF_INET, SOCK_STREAM, 0);
 	if (ss == -1) { perror("socket"); exit(1); }
@@ -81,9 +90,10 @@ void *server_start(void *p) {
 		int s = accept(ss, (struct sockaddr *) &client_addr, &len);
 		if (s == -1) { perror("accept"); exit(1); }
 		printf("Incoming connection: %d\n", s);
-		sp->s = s;
+		// sp->s = s;
 
-		gtk_notebook_set_current_page(GTK_NOTEBOOK(notebook),1);
+		// gtk_notebook_set_current_page(GTK_NOTEBOOK(notebook),1);
+		incoming_call_dialog(GTK_WINDOW(window), "hello world!");
 
 		unsigned char content;
 
@@ -103,7 +113,7 @@ void *server_start(void *p) {
 			n = send(s, &content, 1, MSG_NOSIGNAL);
 			if (n != 1) { perror("send"); break; }
 		}
-		gtk_notebook_set_current_page(GTK_NOTEBOOK(notebook),0);
+		// gtk_notebook_set_current_page(GTK_NOTEBOOK(notebook),0);
 		printf("set notebook page to client.\n");
 		pclose(fp_rec);
 		pclose(fp_play);
@@ -160,17 +170,13 @@ void *client_call(void *pp) {
 // Create socket and initiate client_call on new thread
 void cb_client_call(GtkWidget *widget, gpointer *data) {
 	const gchar *text1;
-	// const gchar *text2;
 	char ip_addr[256] = "aaa";
 	int port;
 
 	text1 = gtk_entry_get_text(GTK_ENTRY((char*)data[0]));
 	sprintf(ip_addr, "%s", text1);
-	// text2 = gtk_entry_get_text(GTK_ENTRY((char*)data[1]));
-	// sprintf(port, "%s", text2);
 	port = 60000;
 	printf("Connecting to %s:%d\n", text1, port);
-	// gtk_label_set_text(GTK_LABEL((char*)data[1]), buf);
 
 	int s = socket(PF_INET, SOCK_STREAM, 0);
 	if(s==-1){perror("socket");exit(1);}
@@ -198,7 +204,6 @@ void cb_client_call(GtkWidget *widget, gpointer *data) {
 	params *p = malloc(sizeof(params));
 	p->i = s;
 	p->entry_client[0] = data[0]; // ip address
-	// p->entry_client[1] = data[1];
 	p->entry_client[2] = data[2]; // window
 	p->entry_client[3] = data[3]; // button1(call)
 	printf("socket : %d\n", p->i);
@@ -232,34 +237,19 @@ void get_my_ip_address(char *ip_addr, char *host_name) {
 	strcpy(host_name, hostbuffer);
 }
 
-
-
-
 int main(int argc, char **argv) {
-	GtkWidget *window;
-	GtkWidget *button1;
-	GtkWidget *button2;
-	GtkWidget **entry_client = malloc(sizeof(GtkWidget*)*4);
-	GtkWidget *label;
-	GtkWidget *grid;
-	GtkWidget *vbox;
-	GtkWidget *hbox;
-	// GtkWidget *notebook;
 
-	// Get Hostname and IP Address
+	// Get Hostname and IP address
 	char *ip_addr = malloc(sizeof(char)*20);
 	char *host_name = malloc(sizeof(char)*50);
 	get_my_ip_address(ip_addr, host_name);
 
 	// Start server, listen on port 60000
-	int port = 60000;
-	server_params *sp = malloc(sizeof(server_params));
-	sp->port = port;
+	// int port = 60000;
+	// server_params *sp = malloc(sizeof(server_params));
+	// sp->port = port;
 	pthread_t server_tid;
-	pthread_create(&server_tid, NULL, &server_start, sp);
-
-	// pthread_join(server_tid, NULL);
-
+	pthread_create(&server_tid, NULL, server_start, NULL);
 
 	gtk_init(&argc, &argv);
 
@@ -282,6 +272,7 @@ int main(int argc, char **argv) {
 
 	// gdk_threads_enter();
 	// Call and answer calls from the same interface
+	GtkWidget **entry_client = malloc(sizeof(GtkWidget*)*4);
 	char bufferl[32];
 	for(int i = 0; i < 2; i++) {
 		if (i == 0) {
@@ -335,35 +326,36 @@ int main(int argc, char **argv) {
 
 			label = gtk_label_new(bufferl);
 			gtk_notebook_append_page(GTK_NOTEBOOK(notebook), vbox, label);
-		} else {
-			// Server setup page
-			// 1. Can start listening in for calls.
-			// 2. 
-			sprintf(bufferl, "Server");
-		    vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
-			hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-			gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
-
-			label = gtk_label_new("Incoming Call... ");
-			gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 0);
-			// gtk_box_pack_start(GTK_BOX(hbox), entry_client[0], TRUE, TRUE, 0);
-
-			hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-			gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
-			label = gtk_label_new("Connected to call.");
-			gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 0);
-			// gtk_box_pack_start(GTK_BOX(hbox), entry_client[1], TRUE, TRUE, 0);
-			button_server_end = gtk_button_new_with_label("END CALL");
-			gtk_box_pack_start(GTK_BOX(vbox), button_server_end, TRUE, TRUE, 0);
-			// entry_client[2] = window;
-			g_signal_connect(button_server_end, "clicked", G_CALLBACK(server_end_call), sp);
-
-			// timelabel = gtk_label_new(r);
-			// gtk_box_pack_start(GTK_BOX(vbox), timelabel, TRUE, TRUE, 0);
-
-			label = gtk_label_new(bufferl);
-			gtk_notebook_append_page(GTK_NOTEBOOK(notebook), vbox, label);
 		}
+		// else {
+		// 	// Server setup page
+		// 	// 1. Can start listening in for calls.
+		// 	// 2. 
+		// 	sprintf(bufferl, "Server");
+		//     vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+		// 	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+		// 	gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
+
+		// 	label = gtk_label_new("Incoming Call... ");
+		// 	gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 0);
+		// 	// gtk_box_pack_start(GTK_BOX(hbox), entry_client[0], TRUE, TRUE, 0);
+
+		// 	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+		// 	gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
+		// 	label = gtk_label_new("Connected to call.");
+		// 	gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 0);
+		// 	// gtk_box_pack_start(GTK_BOX(hbox), entry_client[1], TRUE, TRUE, 0);
+		// 	button_server_end = gtk_button_new_with_label("END CALL");
+		// 	gtk_box_pack_start(GTK_BOX(vbox), button_server_end, TRUE, TRUE, 0);
+		// 	// entry_client[2] = window;
+		// 	g_signal_connect(button_server_end, "clicked", G_CALLBACK(server_end_call), sp);
+
+		// 	// timelabel = gtk_label_new(r);
+		// 	// gtk_box_pack_start(GTK_BOX(vbox), timelabel, TRUE, TRUE, 0);
+
+		// 	label = gtk_label_new(bufferl);
+		// 	gtk_notebook_append_page(GTK_NOTEBOOK(notebook), vbox, label);
+		// }
 	    
   	}
 
