@@ -95,7 +95,7 @@ void incoming_call_dialog(GtkWindow *parent, gchar *message) {
 	dialog = gtk_dialog_new_with_buttons("Message", parent, flags, "END CALL", GTK_RESPONSE_NONE, NULL);
 	content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 	label = gtk_label_new(message);
-	gtk_container_add(GTK_CONTAINER(content_area), label);
+	// gtk_container_add(GTK_CONTAINER(content_area), label);
 
 	// end_call_button = gtk_button_new_with_label("CALL");
 	// gtk_container_add(GTK_CONTAINER(content_area), end_call_button);
@@ -108,15 +108,6 @@ void incoming_call_dialog(GtkWindow *parent, gchar *message) {
 	gtk_container_add(GTK_CONTAINER(content_area), label);
 	gtk_widget_show_all(dialog);
 	printf("incoming_call_dialog displayed\n");
-
-	// response = gtk_dialog_run(GTK_DIALOG(dialog));
-	// if (response == GTK_RESPONSE_YES) {
-	// 	printf("YES was pressed\n");
-	// } else if (response == GTK_RESPONSE_NO) {
-	// 	printf("NO was pressed\n");
-	// }
-
-	// gtk_widget_destroy(dialog);
 }
 
 void outbound_call_dialog(GtkWindow *parent, gchar *message) {
@@ -129,7 +120,7 @@ void outbound_call_dialog(GtkWindow *parent, gchar *message) {
 	dialog = gtk_dialog_new_with_buttons("Message", parent, flags, "END CALL", GTK_RESPONSE_NONE, NULL);
 	content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 	label = gtk_label_new(message);
-	gtk_container_add(GTK_CONTAINER(content_area), label);
+	// gtk_container_add(GTK_CONTAINER(content_area), label);
 
 	// end_call_button = gtk_button_new_with_label("CALL");
 	// gtk_container_add(GTK_CONTAINER(content_area), end_call_button);
@@ -142,21 +133,7 @@ void outbound_call_dialog(GtkWindow *parent, gchar *message) {
 	gtk_container_add(GTK_CONTAINER(content_area), label);
 	gtk_widget_show_all(dialog);
 	printf("outbound_call_dialog displayed\n");
-
-	// response = gtk_dialog_run(GTK_DIALOG(dialog));
-	// if (response == GTK_RESPONSE_YES) {
-	// 	printf("YES was pressed\n");
-	// } else if (response == GTK_RESPONSE_NO) {
-	// 	printf("NO was pressed\n");
-	// }
-
-	// gtk_widget_destroy(dialog);
 }
-
-// typedef struct {
-// 	int port;
-// 	int s;
-// } server_params;
 
 void *server_start(void *p) {
 	int port = 60000;
@@ -181,39 +158,13 @@ void *server_start(void *p) {
 		s = accept(ss, (struct sockaddr *) &client_addr, &len);
 		if (s == -1) { perror("accept"); exit(1); }
 		printf("Incoming connection: %d\n", s);
-		// sp->s = s;
 
-		// gtk_notebook_set_current_page(GTK_NOTEBOOK(notebook),1);
 		incoming_call_dialog(GTK_WINDOW(window), "Incoming Call!");
 
 		pthread_create(&recv_play_tid, NULL, recv_play, NULL);
 		pthread_create(&rec_send_tid, NULL, rec_send, NULL);
 
 		pthread_join(rec_send_tid, NULL);
-		
-		// unsigned char content;
-
-		// FILE *fp_rec;
-		// fp_rec = popen("rec -t raw -b 16 -c 1 -e s -r 44100 -", "r");
-		// FILE *fp_play;
-		// fp_play = popen("play -t raw -b 16 -c 1 -e s -r 44100 - ","w");
-
-		// int n = 0;
-		// while (1) {
-		// 	n = recv(s, &content, 1, MSG_NOSIGNAL);
-	 //    	if (n == -1) { perror("recv"); break; };
-	 //    	n = fwrite(&content, 1, 1, fp_play);
-	 //    	if (n == -1) { perror("fwrite"); break; };
-	 //    	n = fread(&content, 1, 1, fp_rec);
-	 //    	if (n == 0) break;
-		// 	n = send(s, &content, 1, MSG_NOSIGNAL);
-		// 	if (n != 1) { perror("send"); break; }
-		// }
-		// // gtk_notebook_set_current_page(GTK_NOTEBOOK(notebook),0);
-		// // printf("set notebook page to client.\n");
-		// pclose(fp_rec);
-		// pclose(fp_play);
-		// close(s);
 	}
 }
 
@@ -225,32 +176,9 @@ void *client_call() {
 	pthread_create(&rec_send_tid, NULL, rec_send, NULL);
 
 	pthread_join(rec_send_tid, NULL);
-
-	
-	// FILE *fp_rec;
-	// fp_rec = popen("rec -t raw -b 16 -c 1 -e s -r 44100 -", "r");
-	// FILE *fp_play;
-	// fp_play = popen("play -t raw -b 16 -c 1 -e s -r 44100 - ","w");
-
-	// unsigned char content;
-	// int n = 0;
-	// while (1) {
-	// 	n = recv(s, &content, 1, MSG_NOSIGNAL);
- //    	if (n == -1) {perror("recv");break; };
- //    	n = fwrite(&content, 1, 1, fp_play);
- //    	if (n == -1) {perror("fwrite");break; };
- //    	n = fread(&content, 1, 1, fp_rec);
- //    	if (n == 0) break;
-	// 	n = send(s, &content, 1, MSG_NOSIGNAL);
-	// 	if (n != 1) { perror("send"); break; }
-	// }
-	// pclose(fp_rec);
-	// pclose(fp_play);
-	// close(s);
 }
 
 // Client: Call button pressed
-// Create socket and initiate client_call on new thread
 void cb_client_call(GtkWidget *widget) {
 	const gchar *text1;
 	char ip_addr[20];
