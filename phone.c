@@ -39,7 +39,7 @@ void cb_client_call(GtkWidget *widget);
 
 int call_handler_id, end_call_handler_id;
 int s;
-pthread_t recv_play_tid, rec_send_tid;
+pthread_t recv_play_tid, rec_send_tid, client_call_tid, server_tid;
 
 // receive data and play
 void *recv_play() {
@@ -83,6 +83,9 @@ void show_error(gpointer window, char *error_message) {
 void *cb_end_call_and_destroy_dialog(GtkWidget *dialog) {
 	gtk_widget_destroy(dialog);
 	close(s);
+	pthread_exit(&client_call_tid);
+	pthread_exit(&rec_send_tid);
+	pthread_exit(&recv_play_tid);
 }
 
 void incoming_call_dialog(GtkWindow *parent, gchar *message) {
@@ -213,8 +216,7 @@ void cb_client_call(GtkWidget *widget) {
 	}
 	
 	printf("socket : %d\n", s);
-	pthread_t thread_id;
-	pthread_create(&thread_id, NULL, &client_call, &s);
+	pthread_create(&client_call_tid, NULL, &client_call, &s);
 
 	outbound_call_dialog(GTK_WINDOW(window), "Calling!");
 }
@@ -276,7 +278,6 @@ int main(int argc, char **argv) {
 	// int port = 60000;
 	// server_params *sp = malloc(sizeof(server_params));
 	// sp->port = port;
-	pthread_t server_tid;
 	pthread_create(&server_tid, NULL, server_start, NULL);
 
 	gtk_init(&argc, &argv);
