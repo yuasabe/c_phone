@@ -36,7 +36,7 @@ int call_handler_id, end_call_handler_id;
 int s;
 int show_incoming_dialog = 0;
 pthread_t recv_play_tid, rec_send_tid, client_call_tid, server_tid;
-pthread_mutex_t mutex;
+pthread_mutex_t mutex ;
 
 // receive data and play
 void *recv_play() {
@@ -69,28 +69,6 @@ void *rec_send() {
 	return 0;
 }
 
-void handle_sound() {
-	int n;
-	unsigned char content;
-	FILE *fp_rec;
-	FILE *fp_play;
-	fp_rec = popen("rec -V0 -q -t raw -b 16 -c 1 -e s -r 44100 -", "r");
-	fp_play = popen("play -V0 -q -t raw -b 16 -c 1 -e s -r 44100 - ","w");
-	while(1) {
-		n = fread(&content, 1, 1, fp_rec);
-    	if (n == 0) { break; }
-		n = send(s, &content, 1, MSG_NOSIGNAL);
-		if (n != 1) { perror("send"); break; }
-		n = recv(s, &content, 1, MSG_NOSIGNAL);
-		if (n == -1) { perror("recv"); break; };
-		n = fwrite(&content, 1, 1, fp_play);
-		if (n == -1) { perror("fwrite"); break; };
-	}
-	pclose(fp_rec);
-	pclose(fp_play);
-	return;
-}
-
 void show_error(gpointer window, char *error_message) {
 	GtkWidget *dialog;
 	dialog = gtk_message_dialog_new(GTK_WINDOW(window), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK, "%s", error_message);
@@ -104,11 +82,10 @@ void cb_end_call_and_destroy_dialog(GtkWidget *dialog) {
 	gtk_widget_destroy(dialog);
 	pthread_exit(&rec_send_tid);
 	pthread_exit(&recv_play_tid);
-	// thread_exit(&client_call_tid);
 	close(s);
 }
 
-static gboolean incoming_call_dialog() {
+gboolean incoming_call_dialog() {
 	GtkWidget *dialog, *label, *content_area, *end_call_button;
 	GtkDialogFlags flags;
 	gint response;
@@ -126,6 +103,7 @@ static gboolean incoming_call_dialog() {
 	gtk_container_add(GTK_CONTAINER(content_area), label);
 	gtk_widget_show_all(dialog);
 	printf("incoming_call_dialog displayed\n");
+	return G_SOURCE_CONTINUE;
 }
 
 void outbound_call_dialog(GtkWindow *parent, gchar *message) {
@@ -141,12 +119,6 @@ void outbound_call_dialog(GtkWindow *parent, gchar *message) {
 
 	// Ensure that the dialog box is destroyed when the user response
 	g_signal_connect_swapped(dialog, "response", G_CALLBACK(cb_end_call_and_destroy_dialog), dialog);
-
-	// response = gtk_dialog_run(GTK_DIALOG(dialog));
-	// if (response == 1) {
-	// 	printf("End Call\n");
-	// 	cb_end_call_and_destroy_dialog(dialog);
-	// }
 
 	// Add the label, and show everything we've added
 	gtk_container_add(GTK_CONTAINER(content_area), label);
@@ -178,13 +150,13 @@ void *server_start() {
 		if (s == -1) { perror("accept"); exit(1); }
 		printf("Incoming connection: %d\n", s);
 
-		// gdk_threads_add_idle(incoming_call_dialog, NULL);
+		gdk_threads_add_idle(incoming_call_dialog, NULL);
 		// incoming_call_dialog(GTK_WINDOW(window), "Incoming Call!");
 
 		// show incoming_call_dialog
-		pthread_mutex_lock(&mutex);
-		show_incoming_dialog = 1;
-		pthread_mutex_unlock(&mutex);
+		// pthread_mutex_lock(&mutex);
+		// show_incoming_dialog = 1;
+		// pthread_mutex_unlock(&mutex);
 
 		pthread_create(&recv_play_tid, NULL, recv_play, NULL);
 		pthread_create(&rec_send_tid, NULL, rec_send, NULL);
@@ -290,7 +262,7 @@ int main(int argc, char **argv) {
 	char *host_name = malloc(sizeof(char)*50);
 	get_my_ip_address(ip_addr, host_name);
 
-	pthread_mutex_init(&mutex, NULL);
+	// pthread_mutex_init(&mutex, NULL);
 
 	// Start server, listen on port 60000
 	pthread_create(&server_tid, NULL, server_start, NULL);
