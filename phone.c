@@ -106,25 +106,19 @@ void cb_end_call_and_destroy_dialog(GtkWidget *dialog) {
 	close(s);
 }
 
-void incoming_call_dialog(GtkWindow *parent, gchar *message) {
+static gboolean incoming_call_dialog() {
 	GtkWidget *dialog, *label, *content_area, *end_call_button;
 	GtkDialogFlags flags;
 	gint response;
 
 	// Create the widgets
 	flags = GTK_DIALOG_DESTROY_WITH_PARENT;
-	dialog = gtk_dialog_new_with_buttons("Message", parent, flags, "END CALL", 1, NULL);
+	dialog = gtk_dialog_new_with_buttons("Message", GTK_WINDOW(window), flags, "END CALL", 1, NULL);
 	content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-	label = gtk_label_new(message);
+	label = gtk_label_new("Incoming Call!!");
 
 	// Ensure that the dialog box is destroyed when the user response
 	g_signal_connect_swapped(dialog, "response", G_CALLBACK(cb_end_call_and_destroy_dialog), dialog);
-
-	// response = gtk_dialog_run(GTK_DIALOG(dialog));
-	// if (response == 1) {
-	// 	printf("End Call\n");
-	// 	cb_end_call_and_destroy_dialog(dialog);
-	// }
 
 	// Add the label, and show everything we've added
 	gtk_container_add(GTK_CONTAINER(content_area), label);
@@ -182,11 +176,12 @@ void *server_start(void *p) {
 		if (s == -1) { perror("accept"); exit(1); }
 		printf("Incoming connection: %d\n", s);
 
-		incoming_call_dialog(GTK_WINDOW(window), "Incoming Call!");
+		gdk_threads_add_idle(incoming_call_dialog, NULL);
+		// incoming_call_dialog(GTK_WINDOW(window), "Incoming Call!");
 
-		// pthread_create(&recv_play_tid, NULL, recv_play, NULL);
-		// pthread_create(&rec_send_tid, NULL, rec_send, NULL);
-		handle_sound();
+		pthread_create(&recv_play_tid, NULL, recv_play, NULL);
+		pthread_create(&rec_send_tid, NULL, rec_send, NULL);
+		// handle_sound();
 		// pthread_join(rec_send_tid, NULL);
 	}
 }
@@ -228,10 +223,10 @@ void cb_client_call(GtkWidget *widget) {
 	printf("socket : %d\n", s);
 	// pthread_create(&client_call_tid, NULL, &client_call, &s);
 
-	// pthread_create(&recv_play_tid, NULL, recv_play, NULL);
-	// pthread_create(&rec_send_tid, NULL, rec_send, NULL);
+	pthread_create(&recv_play_tid, NULL, recv_play, NULL);
+	pthread_create(&rec_send_tid, NULL, rec_send, NULL);
 
-	handle_sound();
+	// handle_sound();
 	outbound_call_dialog(GTK_WINDOW(window), "Calling!");
 }
 
