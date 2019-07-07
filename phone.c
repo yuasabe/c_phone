@@ -117,7 +117,7 @@ void outbound_call_dialog(GtkWindow *parent, gchar *message) {
 
 	// Create the widgets
 	flags = GTK_DIALOG_DESTROY_WITH_PARENT;
-	dialog = gtk_dialog_new_with_buttons("Message", parent, flags, "END CALL", GTK_RESPONSE_APPLY, NULL);
+	dialog = gtk_dialog_new_with_buttons("Message", parent, flags, "END CALL", 1, NULL);
 	content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 	label = gtk_label_new(message);
 
