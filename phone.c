@@ -34,7 +34,9 @@ void cb_client_call(GtkWidget *widget);
 
 int call_handler_id, end_call_handler_id;
 int s;
+int show_incoming_dialog = 0;
 pthread_t recv_play_tid, rec_send_tid, client_call_tid, server_tid;
+pthread_mutex_t mutex;
 
 // receive data and play
 void *recv_play() {
@@ -176,8 +178,13 @@ void *server_start() {
 		if (s == -1) { perror("accept"); exit(1); }
 		printf("Incoming connection: %d\n", s);
 
-		gdk_threads_add_idle(incoming_call_dialog, NULL);
+		// gdk_threads_add_idle(incoming_call_dialog, NULL);
 		// incoming_call_dialog(GTK_WINDOW(window), "Incoming Call!");
+
+		// show incoming_call_dialog
+		pthread_mutex_lock(&mutex);
+		show_incoming_dialog = 1;
+		pthread_mutex_unlock(&mutex);
 
 		pthread_create(&recv_play_tid, NULL, recv_play, NULL);
 		pthread_create(&rec_send_tid, NULL, rec_send, NULL);
@@ -282,6 +289,8 @@ int main(int argc, char **argv) {
 	char *ip_addr = malloc(sizeof(char)*20);
 	char *host_name = malloc(sizeof(char)*50);
 	get_my_ip_address(ip_addr, host_name);
+
+	pthread_mutex_init(&mutex, NULL);
 
 	// Start server, listen on port 60000
 	pthread_create(&server_tid, NULL, server_start, NULL);
