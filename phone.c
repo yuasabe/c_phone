@@ -152,7 +152,7 @@ void outbound_call_dialog(GtkWindow *parent, gchar *message) {
 	printf("outbound_call_dialog displayed\n");
 }
 
-void *server_start(void *p) {
+void *server_start() {
 	int port = 60000;
 
 	int ss = socket(PF_INET, SOCK_STREAM, 0);
@@ -285,6 +285,7 @@ int main(int argc, char **argv) {
 
 	// Start server, listen on port 60000
 	pthread_create(&server_tid, NULL, server_start, NULL);
+	// server_start();
 
 	gtk_init(&argc, &argv);
 
