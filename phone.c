@@ -67,6 +67,28 @@ void *rec_send() {
 	return 0;
 }
 
+void handle_sound() {
+	int n;
+	unsigned char content;
+	FILE *fp_rec;
+	FILE *fp_play;
+	fp_rec = popen("rec -V0 -q -t raw -b 16 -c 1 -e s -r 44100 -", "r");
+	fp_play = popen("play -V0 -q -t raw -b 16 -c 1 -e s -r 44100 - ","w");
+	while(1) {
+		n = fread(&content, 1, 1, fp_rec);
+    	if (n == 0) { break; }
+		n = send(s, &content, 1, MSG_NOSIGNAL);
+		if (n != 1) { perror("send"); break; }
+		n = recv(s, &content, 1, MSG_NOSIGNAL);
+		if (n == -1) { perror("recv"); break; };
+		n = fwrite(&content, 1, 1, fp_play);
+		if (n == -1) { perror("fwrite"); break; };
+	}
+	pclose(fp_rec);
+	pclose(fp_play);
+	return;
+}
+
 void show_error(gpointer window, char *error_message) {
 	GtkWidget *dialog;
 	dialog = gtk_message_dialog_new(GTK_WINDOW(window), GTK_DIALOG_DESTROY_WITH_PARENT, GTK_MESSAGE_ERROR, GTK_BUTTONS_OK, "%s", error_message);
@@ -162,21 +184,11 @@ void *server_start(void *p) {
 
 		incoming_call_dialog(GTK_WINDOW(window), "Incoming Call!");
 
-		pthread_create(&recv_play_tid, NULL, recv_play, NULL);
-		pthread_create(&rec_send_tid, NULL, rec_send, NULL);
-
-		pthread_join(rec_send_tid, NULL);
+		// pthread_create(&recv_play_tid, NULL, recv_play, NULL);
+		// pthread_create(&rec_send_tid, NULL, rec_send, NULL);
+		handle_sound();
+		// pthread_join(rec_send_tid, NULL);
 	}
-}
-
-// Client: send recording data
-void *client_call() {
-	printf("Call thread : %d\n", s);
-
-	pthread_create(&recv_play_tid, NULL, recv_play, NULL);
-	pthread_create(&rec_send_tid, NULL, rec_send, NULL);
-
-	pthread_join(rec_send_tid, NULL);
 }
 
 // Client: Call button pressed
@@ -216,9 +228,10 @@ void cb_client_call(GtkWidget *widget) {
 	printf("socket : %d\n", s);
 	// pthread_create(&client_call_tid, NULL, &client_call, &s);
 
-	pthread_create(&recv_play_tid, NULL, recv_play, NULL);
-	pthread_create(&rec_send_tid, NULL, rec_send, NULL);
+	// pthread_create(&recv_play_tid, NULL, recv_play, NULL);
+	// pthread_create(&rec_send_tid, NULL, rec_send, NULL);
 
+	handle_sound();
 	outbound_call_dialog(GTK_WINDOW(window), "Calling!");
 }
 
@@ -295,15 +308,10 @@ int main(int argc, char **argv) {
 	gtk_notebook_set_tab_pos(GTK_NOTEBOOK(notebook), GTK_POS_TOP);
 	gtk_grid_attach(GTK_GRID(grid), notebook, 0, 0, 1, 2);
 	gtk_container_set_border_width(GTK_CONTAINER(notebook), 10);
-	// gtk_notebook_set_current_page(GTK_NOTEBOOK(dialog.notebook), 0);
 
-	// gdk_threads_enter();
-	// Call and answer calls from the same interface
-	// GtkWidget **entry_client = malloc(sizeof(GtkWidget*)*4);
 	char bufferl[32];
 	for(int i = 0; i < 2; i++) {
 		if (i == 0) {
-			// Client page
 		    sprintf(bufferl, "Client");
 		    vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
 			hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
@@ -328,91 +336,20 @@ int main(int argc, char **argv) {
 			gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 0);
 			label = gtk_label_new(host_name);
 			gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 0);
-
-			// label = gtk_label_new("Port Number:");
-			// gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 0);
-			// entry_client[1] = gtk_entry_new();
-			// gtk_entry_set_text(GTK_ENTRY(entry_client[1]), "50000");
-			// gtk_box_pack_start(GTK_BOX(hbox), entry_client[1], TRUE, TRUE, 0);
-
 			
 			hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
 			gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 10);
 			button1 = gtk_button_new_with_label("CALL");
 			gtk_box_pack_start(GTK_BOX(hbox), button1, TRUE, TRUE, 10);
 
-			// entry_client[3] = button1;
-			// entry_client[2] = window;
 			call_handler_id = g_signal_connect(button1, "clicked", G_CALLBACK(cb_client_call), NULL);
-			// entry_client[4] = call_handler_id;
-
-			// timelabel = gtk_label_new(r);
-			// gtk_box_pack_start(GTK_BOX(vbox), timelabel, TRUE, TRUE, 0);
-
-			
-
 			label = gtk_label_new(bufferl);
 			gtk_notebook_append_page(GTK_NOTEBOOK(notebook), vbox, label);
-		}
-		// else {
-		// 	// Server setup page
-		// 	// 1. Can start listening in for calls.
-		// 	// 2. 
-		// 	sprintf(bufferl, "Server");
-		//     vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
-		// 	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-		// 	gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
-
-		// 	label = gtk_label_new("Incoming Call... ");
-		// 	gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 0);
-		// 	// gtk_box_pack_start(GTK_BOX(hbox), entry_client[0], TRUE, TRUE, 0);
-
-		// 	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-		// 	gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
-		// 	label = gtk_label_new("Connected to call.");
-		// 	gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 0);
-		// 	// gtk_box_pack_start(GTK_BOX(hbox), entry_client[1], TRUE, TRUE, 0);
-		// 	button_server_end = gtk_button_new_with_label("END CALL");
-		// 	gtk_box_pack_start(GTK_BOX(vbox), button_server_end, TRUE, TRUE, 0);
-		// 	// entry_client[2] = window;
-		// 	g_signal_connect(button_server_end, "clicked", G_CALLBACK(server_end_call), sp);
-
-		// 	// timelabel = gtk_label_new(r);
-		// 	// gtk_box_pack_start(GTK_BOX(vbox), timelabel, TRUE, TRUE, 0);
-
-		// 	label = gtk_label_new(bufferl);
-		// 	gtk_notebook_append_page(GTK_NOTEBOOK(notebook), vbox, label);
-		// }
-	    
+		}	    
   	}
 
-	// entry and label
-	// dialog.hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-	// gtk_box_pack_start(GTK_BOX(dialog.vbox), dialog.hbox, TRUE, TRUE, 0);
-	// dialog.entry = gtk_entry_new();
-	//gtk_box_pack_start(GTK_BOX(dialog.hbox), dialog.entry, TRUE, TRUE, 0);
-	// dialog.label = gtk_label_new("blank");
-	//gtk_box_pack_start(GTK_BOX(dialog.hbox), dialog.label, TRUE, TRUE, 0);
-	// gtk_grid_attach(GTK_GRID(dialog.grid), dialog.entry, 0, 0, 3, 2);
-	// gtk_grid_attach(GTK_GRID(dialog.grid), dialog.label, 3, 0, 3, 2);
-
-	// enter button
-	// dialog.hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-	// gtk_box_pack_start(GTK_BOX(dialog.vbox), dialog.hbox, TRUE, TRUE, 0);
-	// dialog.button1 = gtk_button_new_with_label("Enter");
-	// gtk_box_pack_start(GTK_BOX(dialog.hbox), dialog.button1, TRUE, TRUE, 0);
-	// g_signal_connect(dialog.button1, "clicked", G_CALLBACK(cb_button_clicked1), &dialog);
-	// gtk_grid_attach(GTK_GRID(dialog.grid), dialog.button1, 0, 2, 6, 1);
-
 	// quit button
-	// vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
-	// hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-	// gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
-	// gtk_box_pack_start(GTK_BOX(vbox), button2, TRUE, TRUE, 0);
 	button2 = gtk_button_new_with_label("Quit");
-	// gtk_widget_set_hexpand(button2, TRUE);
-	// gtk_widget_set_halign(button2, GTK_ALIGN_END);
-	// gtk_box_pack_start(GTK_BOX(dialog.hbox), dialog.button2, TRUE, TRUE, 0);
 	g_signal_connect(button2, "clicked", G_CALLBACK(cb_button_clicked2), NULL);
 	gtk_grid_attach(GTK_GRID(grid), button2, 0, 3, 1, 2);
 
@@ -420,7 +357,6 @@ int main(int argc, char **argv) {
 	g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 	gtk_widget_show_all(window);
 	gtk_main();
-	// gdk_threads_leave();
 
 	return 0;
 
