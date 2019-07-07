@@ -75,12 +75,12 @@ void show_error(gpointer window, char *error_message) {
 	gtk_widget_destroy(dialog);
 }
 
-void *cb_end_call_and_destroy_dialog(GtkWidget *dialog) {
+void cb_end_call_and_destroy_dialog(GtkWidget *dialog) {
 	printf("cb_end_call_and_destroy_dialog started\n");
 	gtk_widget_destroy(dialog);
 	pthread_exit(&rec_send_tid);
 	pthread_exit(&recv_play_tid);
-	pthread_exit(&client_call_tid);
+	// thread_exit(&client_call_tid);
 	close(s);
 }
 
@@ -91,12 +91,18 @@ void incoming_call_dialog(GtkWindow *parent, gchar *message) {
 
 	// Create the widgets
 	flags = GTK_DIALOG_DESTROY_WITH_PARENT;
-	dialog = gtk_dialog_new_with_buttons("Message", parent, flags, "END CALL", GTK_RESPONSE_NONE, NULL);
+	dialog = gtk_dialog_new_with_buttons("Message", parent, flags, "END CALL", 1, NULL);
 	content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 	label = gtk_label_new(message);
 
 	// Ensure that the dialog box is destroyed when the user response
-	g_signal_connect_swapped(dialog, "response", G_CALLBACK(cb_end_call_and_destroy_dialog), dialog);
+	// g_signal_connect_swapped(dialog, "response", G_CALLBACK(cb_end_call_and_destroy_dialog), dialog);
+
+	response = gtk_dialog_run(GTK_DIALOG(dialog));
+	if (response == 1) {
+		printf("End Call\n");
+		cb_end_call_and_destroy_dialog(dialog);
+	}
 
 	// Add the label, and show everything we've added
 	gtk_container_add(GTK_CONTAINER(content_area), label);
@@ -116,7 +122,13 @@ void outbound_call_dialog(GtkWindow *parent, gchar *message) {
 	label = gtk_label_new(message);
 
 	// Ensure that the dialog box is destroyed when the user response
-	g_signal_connect_swapped(dialog, "response", G_CALLBACK(cb_end_call_and_destroy_dialog), dialog);
+	// g_signal_connect_swapped(dialog, "response", G_CALLBACK(cb_end_call_and_destroy_dialog), dialog);
+
+	response = gtk_dialog_run(GTK_DIALOG(dialog));
+	if (response == 1) {
+		printf("End Call\n");
+		cb_end_call_and_destroy_dialog(dialog);
+	}
 
 	// Add the label, and show everything we've added
 	gtk_container_add(GTK_CONTAINER(content_area), label);
