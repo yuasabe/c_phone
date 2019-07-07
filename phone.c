@@ -272,7 +272,7 @@ void get_my_ip_address(char *ip_addr, char *host_name) {
 				printf("getnameinfo() failed: %s\n", gai_strerror(s));
 				exit(EXIT_FAILURE);
 			}
-			if (strncmp(ifa->ifa_name, "e",1 ) == 0) {
+			if (strncmp(ifa->ifa_name, "e",1 ) == 0 || strncmp(ifa->ifa_name, "w",1 ) == 0) {
 				strcpy(ip_addr, host);
 			}
 			printf("<Interface>: %s \t <Address> %s\n", ifa->ifa_name, host);
