@@ -45,6 +45,14 @@ void sigpipe_handler() {
 	printf("SIGPIPE caught\n");
 	socket_OK = 0;
 }
+
+void call_ended() {
+	gtk_widget_destroy(dialog);
+	pthread_cancel(rec_send_tid);
+	pthread_cancel(recv_play_tid);
+	close(s);
+}
+
 // receive data and play
 void *recv_play() {
 	int n;
@@ -54,6 +62,7 @@ void *recv_play() {
 	while(1) {
 		n = recv(s, &content, 1, 0);
 		if (n == -1) { perror("recv"); break; };
+		// if (n == 0) { printf("Call disconnected\n"); call_ended(); }
 		n = fwrite(&content, 1, 1, fp_play);
 		if (n == -1) { perror("fwrite"); break; };
 	}
@@ -90,6 +99,8 @@ gboolean cb_end_call_and_destroy_dialog() {
 	pthread_cancel(rec_send_tid);
 	pthread_cancel(recv_play_tid);
 	close(s);
+	s = -1;
+	printf("s: %d\n", s);
 	return G_SOURCE_REMOVE;
 }
 
@@ -148,10 +159,12 @@ void outbound_call_dialog(GtkWindow *parent, gchar *message) {
 		pthread_cancel(recv_play_tid);
 		int n = close(s);
 		if (n != 0) { perror("close"); }
+		s = -1;
+		printf("s: %d\n", s);
 	}
 
 	was_connected = 1;
-	printf("outbound_call_dialog displayed\n");
+	// printf("outbound_call_dialog displayed\n");
 }
 
 void *server_start() {
@@ -284,7 +297,7 @@ gboolean check_if_call_ended() {
 	socklen_t len = sizeof (error);
 	int retval = getsockopt (s, SOL_SOCKET, SO_ERROR, &error, &len);
 	// char data = 0x1;
-	// int n = send(s, &data, 1, 0);
+	// int n = fcntl(s, &data, 1, 0);
 	// printf("n= %d, was_connected = %d\n", n, was_connected);
 	
 	if (retval != 0 && was_connected == 1) {
