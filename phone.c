@@ -146,7 +146,8 @@ void outbound_call_dialog(GtkWindow *parent, gchar *message) {
 		gtk_widget_destroy(dialog);
 		pthread_cancel(rec_send_tid);
 		pthread_cancel(recv_play_tid);
-		close(s);
+		int n = close(s);
+		if (n != 0) { perror("close"); }
 	}
 
 	was_connected = 1;
@@ -279,14 +280,14 @@ void get_my_ip_address(char *ip_addr, char *host_name) {
 }
 
 gboolean check_if_call_ended() {
-	// int error = 0;
-	// socklen_t len = sizeof (error);
-	// int retval = getsockopt (s, SOL_SOCKET, SO_ERROR, &error, &len);
-	char data = 0x1;
-	int n = send(s, &data, 1, 0);
-	printf("n= %d, was_connected = %d\n", n, was_connected);
+	int error = 0;
+	socklen_t len = sizeof (error);
+	int retval = getsockopt (s, SOL_SOCKET, SO_ERROR, &error, &len);
+	// char data = 0x1;
+	// int n = send(s, &data, 1, 0);
+	// printf("n= %d, was_connected = %d\n", n, was_connected);
 	
-	if (n != 1 && was_connected == 1) {
+	if (retval != 0 && was_connected == 1) {
 		printf("Socket closed\n");
 		gtk_widget_destroy(dialog);
 		pthread_cancel(rec_send_tid);
@@ -310,9 +311,9 @@ int main(int argc, char **argv) {
 	pthread_create(&server_tid, NULL, server_start, NULL);
 	// server_start();
 
-	signal(SIGPIPE, sigpipe_handler);
+	// signal(SIGPIPE, sigpipe_handler);
 
-	g_timeout_add_seconds(3, check_if_call_ended, NULL);
+	// g_timeout_add_seconds(3, check_if_call_ended, NULL);
 
 	gtk_init(&argc, &argv);
 
