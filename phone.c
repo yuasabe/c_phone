@@ -36,6 +36,7 @@ void cb_client_call(GtkWidget *widget);
 int call_handler_id, end_call_handler_id;
 int s;
 int show_incoming_dialog = 0;
+int was_connected = 0;
 pthread_t recv_play_tid, rec_send_tid, client_call_tid, server_tid;
 pthread_mutex_t mutex ;
 
@@ -111,7 +112,7 @@ gboolean incoming_call_dialog() {
 		printf("Close dialog\n");
 		gdk_threads_add_idle(cb_end_call_and_destroy_dialog, NULL);
 	}
-
+	was_connected = 1;
 	return G_SOURCE_REMOVE; // spend like three hours on this line
 }
 
@@ -141,7 +142,8 @@ void outbound_call_dialog(GtkWindow *parent, gchar *message) {
 		pthread_cancel(recv_play_tid);
 		close(s);
 	}
-	
+
+	was_connected = 1;
 	printf("outbound_call_dialog displayed\n");
 }
 
@@ -264,6 +266,20 @@ void get_my_ip_address(char *ip_addr, char *host_name) {
 	strcpy(host_name, hostbuffer);
 }
 
+gboolean check_if_call_ended() {
+	int error = 0;
+	socklen_t len = sizeof (error);
+	int retval = getsockopt (s, SOL_SOCKET, SO_ERROR, &error, &len);
+	if (retval != 0 && was_connected == 1) {
+		printf("Socket closed\n");
+		gtk_widget_destroy(dialog);
+		pthread_cancel(rec_send_tid);
+		pthread_cancel(recv_play_tid);
+		was_connected = 0;
+	}
+	return G_SOURCE_CONTINUE;
+}
+
 int main(int argc, char **argv) {
 
 	// Get Hostname and IP address
@@ -276,6 +292,8 @@ int main(int argc, char **argv) {
 	// Start server, listen on port 60000
 	pthread_create(&server_tid, NULL, server_start, NULL);
 	// server_start();
+
+	g_timeout_add_seconds(3, check_if_call_ended, NULL);
 
 	gtk_init(&argc, &argv);
 
