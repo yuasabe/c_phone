@@ -29,6 +29,7 @@ GtkWidget *hbox;
 GtkWidget *notebook;
 GtkWidget *button_server_end;
 GtkWidget *ip_addr_entry;
+GtkWidget *dialog;
 
 void cb_client_call(GtkWidget *widget);
 
@@ -77,33 +78,41 @@ void show_error(gpointer window, char *error_message) {
 	gtk_widget_destroy(dialog);
 }
 
-void cb_end_call_and_destroy_dialog(GtkWidget *dialog) {
+gboolean cb_end_call_and_destroy_dialog() {
 	printf("cb_end_call_and_destroy_dialog started\n");
 	gtk_widget_destroy(dialog);
-	pthread_exit(&rec_send_tid);
-	pthread_exit(&recv_play_tid);
+	pthread_cancel(rec_send_tid);
+	pthread_cancel(recv_play_tid);
 	close(s);
+	return G_SOURCE_REMOVE;
 }
 
 gboolean incoming_call_dialog() {
-	GtkWidget *dialog, *label, *content_area, *end_call_button;
+	GtkWidget *label, *content_area;
 	GtkDialogFlags flags;
 	gint response;
 
 	// Create the widgets
-	flags = GTK_DIALOG_DESTROY_WITH_PARENT;
+	flags = GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_MODAL;
 	dialog = gtk_dialog_new_with_buttons("Message", GTK_WINDOW(window), flags, "END CALL", 1, NULL);
 	content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 	label = gtk_label_new("Incoming Call!!");
 
 	// Ensure that the dialog box is destroyed when the user response
-	g_signal_connect_swapped(dialog, "response", G_CALLBACK(cb_end_call_and_destroy_dialog), dialog);
+	// g_signal_connect_swapped(dialog, "response", G_CALLBACK(cb_end_call_and_destroy_dialog), dialog);
 
 	// Add the label, and show everything we've added
 	gtk_container_add(GTK_CONTAINER(content_area), label);
 	gtk_widget_show_all(dialog);
 	printf("incoming_call_dialog displayed\n");
-	return G_SOURCE_REMOVE;
+
+	response = gtk_dialog_run(GTK_DIALOG(dialog));
+	if (response == 1) {
+		printf("Close dialog\n");
+		gdk_threads_add_idle(cb_end_call_and_destroy_dialog, NULL);
+	}
+
+	return G_SOURCE_REMOVE; // spend like three hours on this line
 }
 
 void outbound_call_dialog(GtkWindow *parent, gchar *message) {
@@ -118,11 +127,21 @@ void outbound_call_dialog(GtkWindow *parent, gchar *message) {
 	label = gtk_label_new(message);
 
 	// Ensure that the dialog box is destroyed when the user response
-	g_signal_connect_swapped(dialog, "response", G_CALLBACK(cb_end_call_and_destroy_dialog), dialog);
+	// g_signal_connect_swapped(dialog, "response", G_CALLBACK(cb_end_call_and_destroy_dialog), dialog);
 
 	// Add the label, and show everything we've added
 	gtk_container_add(GTK_CONTAINER(content_area), label);
 	gtk_widget_show_all(dialog);
+
+	response = gtk_dialog_run(GTK_DIALOG(dialog));
+	if (response == 1) {
+		printf("Close dialog\n");
+		gtk_widget_destroy(dialog);
+		pthread_cancel(rec_send_tid);
+		pthread_cancel(recv_play_tid);
+		close(s);
+	}
+	
 	printf("outbound_call_dialog displayed\n");
 }
 
@@ -151,17 +170,9 @@ void *server_start() {
 		printf("Incoming connection: %d\n", s);
 
 		gdk_threads_add_idle(incoming_call_dialog, NULL);
-		// incoming_call_dialog(GTK_WINDOW(window), "Incoming Call!");
-
-		// show incoming_call_dialog
-		// pthread_mutex_lock(&mutex);
-		// show_incoming_dialog = 1;
-		// pthread_mutex_unlock(&mutex);
 
 		pthread_create(&recv_play_tid, NULL, recv_play, NULL);
 		pthread_create(&rec_send_tid, NULL, rec_send, NULL);
-		// handle_sound();
-		// pthread_join(rec_send_tid, NULL);
 	}
 }
 
@@ -200,12 +211,10 @@ void cb_client_call(GtkWidget *widget) {
 	}
 	
 	printf("socket : %d\n", s);
-	// pthread_create(&client_call_tid, NULL, &client_call, &s);
 
 	pthread_create(&recv_play_tid, NULL, recv_play, NULL);
 	pthread_create(&rec_send_tid, NULL, rec_send, NULL);
 
-	// handle_sound();
 	outbound_call_dialog(GTK_WINDOW(window), "Calling!");
 }
 
