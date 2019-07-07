@@ -96,13 +96,13 @@ void incoming_call_dialog(GtkWindow *parent, gchar *message) {
 	label = gtk_label_new(message);
 
 	// Ensure that the dialog box is destroyed when the user response
-	// g_signal_connect_swapped(dialog, "response", G_CALLBACK(cb_end_call_and_destroy_dialog), dialog);
+	g_signal_connect_swapped(dialog, "response", G_CALLBACK(cb_end_call_and_destroy_dialog), dialog);
 
-	response = gtk_dialog_run(GTK_DIALOG(dialog));
-	if (response == 1) {
-		printf("End Call\n");
-		cb_end_call_and_destroy_dialog(dialog);
-	}
+	// response = gtk_dialog_run(GTK_DIALOG(dialog));
+	// if (response == 1) {
+	// 	printf("End Call\n");
+	// 	cb_end_call_and_destroy_dialog(dialog);
+	// }
 
 	// Add the label, and show everything we've added
 	gtk_container_add(GTK_CONTAINER(content_area), label);
@@ -122,13 +122,13 @@ void outbound_call_dialog(GtkWindow *parent, gchar *message) {
 	label = gtk_label_new(message);
 
 	// Ensure that the dialog box is destroyed when the user response
-	// g_signal_connect_swapped(dialog, "response", G_CALLBACK(cb_end_call_and_destroy_dialog), dialog);
+	g_signal_connect_swapped(dialog, "response", G_CALLBACK(cb_end_call_and_destroy_dialog), dialog);
 
-	response = gtk_dialog_run(GTK_DIALOG(dialog));
-	if (response == 1) {
-		printf("End Call\n");
-		cb_end_call_and_destroy_dialog(dialog);
-	}
+	// response = gtk_dialog_run(GTK_DIALOG(dialog));
+	// if (response == 1) {
+	// 	printf("End Call\n");
+	// 	cb_end_call_and_destroy_dialog(dialog);
+	// }
 
 	// Add the label, and show everything we've added
 	gtk_container_add(GTK_CONTAINER(content_area), label);
