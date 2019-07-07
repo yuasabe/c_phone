@@ -43,17 +43,17 @@ time_t seconds = 0;
 pthread_t recv_play_tid, rec_send_tid, client_call_tid, server_tid;
 pthread_mutex_t mutex ;
 
-void sigpipe_handler() {
-	printf("SIGPIPE caught\n");
-	socket_OK = 0;
-}
+// void sigpipe_handler() {
+// 	printf("SIGPIPE caught\n");
+// 	socket_OK = 0;
+// }
 
-void call_ended() {
-	gtk_widget_destroy(dialog);
-	pthread_cancel(rec_send_tid);
-	pthread_cancel(recv_play_tid);
-	close(s);
-}
+// void call_ended() {
+// 	gtk_widget_destroy(dialog);
+// 	pthread_cancel(rec_send_tid);
+// 	pthread_cancel(recv_play_tid);
+// 	close(s);
+// }
 
 // receive data and play
 void *recv_play() {
@@ -126,7 +126,9 @@ gboolean incoming_call_dialog() {
 	// Add the label, and show everything we've added
 	gtk_container_add(GTK_CONTAINER(content_area), label);
 	gtk_widget_show_all(dialog);
+
 	was_connected = 1;
+	
 	printf("incoming_call_dialog displayed\n");
 
 	response = gtk_dialog_run(GTK_DIALOG(dialog));
@@ -158,6 +160,8 @@ void outbound_call_dialog(GtkWindow *parent, gchar *message) {
 	gtk_container_add(GTK_CONTAINER(content_area), label);
 	gtk_widget_show_all(dialog);
 
+	was_connected = 1;
+
 	response = gtk_dialog_run(GTK_DIALOG(dialog));
 	if (response == 1) {
 		printf("Close dialog\n");
@@ -169,8 +173,6 @@ void outbound_call_dialog(GtkWindow *parent, gchar *message) {
 		s = -1;
 		printf("s: %d\n", s);
 	}
-
-	was_connected = 1;
 }
 
 void *server_start() {
