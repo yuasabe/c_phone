@@ -37,9 +37,14 @@ int call_handler_id, end_call_handler_id;
 int s;
 int show_incoming_dialog = 0;
 int was_connected = 0;
+int socket_OK = 0;
 pthread_t recv_play_tid, rec_send_tid, client_call_tid, server_tid;
 pthread_mutex_t mutex ;
 
+void sigpipe_handler() {
+	printf("SIGPIPE caught\n");
+	socket_OK = 0;
+}
 // receive data and play
 void *recv_play() {
 	int n;
@@ -47,7 +52,7 @@ void *recv_play() {
 	FILE *fp_play;
 	fp_play = popen("play -V0 -q -t raw -b 16 -c 1 -e s -r 44100 - ","w");
 	while(1) {
-		n = recv(s, &content, 1, MSG_NOSIGNAL);
+		n = recv(s, &content, 1, 0);
 		if (n == -1) { perror("recv"); break; };
 		n = fwrite(&content, 1, 1, fp_play);
 		if (n == -1) { perror("fwrite"); break; };
@@ -64,7 +69,7 @@ void *rec_send() {
 	while(1) {
 		n = fread(&content, 1, 1, fp_rec);
     	if (n == 0) { break; }
-		n = send(s, &content, 1, MSG_NOSIGNAL);
+		n = send(s, &content, 1, 0);
 		if (n != 1) { perror("send"); break; }
 	}
 	pclose(fp_rec);
@@ -105,6 +110,7 @@ gboolean incoming_call_dialog() {
 	// Add the label, and show everything we've added
 	gtk_container_add(GTK_CONTAINER(content_area), label);
 	gtk_widget_show_all(dialog);
+	was_connected = 1;
 	printf("incoming_call_dialog displayed\n");
 
 	response = gtk_dialog_run(GTK_DIALOG(dialog));
@@ -112,12 +118,12 @@ gboolean incoming_call_dialog() {
 		printf("Close dialog\n");
 		gdk_threads_add_idle(cb_end_call_and_destroy_dialog, NULL);
 	}
-	was_connected = 1;
+	
 	return G_SOURCE_REMOVE; // spend like three hours on this line
 }
 
 void outbound_call_dialog(GtkWindow *parent, gchar *message) {
-	GtkWidget *dialog, *label, *content_area, *end_call_button;
+	GtkWidget *label, *content_area, *end_call_button;
 	GtkDialogFlags flags;
 	gint response;
 
@@ -161,15 +167,19 @@ void *server_start() {
 	ret = listen(ss, 10);
 	if (ret != 0) { perror("listen"); exit(1); }
 
+	s = -1;
 	while (1) {
 		printf("\n\nListening on port %d\n", port);
 
+		// s = -1;
 		struct sockaddr_in client_addr;
 		socklen_t len = sizeof(struct sockaddr_in);
 
 		s = accept(ss, (struct sockaddr *) &client_addr, &len);
 		if (s == -1) { perror("accept"); exit(1); }
 		printf("Incoming connection: %d\n", s);
+
+		socket_OK = 1;
 
 		gdk_threads_add_idle(incoming_call_dialog, NULL);
 
@@ -213,6 +223,8 @@ void cb_client_call(GtkWidget *widget) {
 	}
 	
 	printf("socket : %d\n", s);
+
+	socket_OK = 1;
 
 	pthread_create(&recv_play_tid, NULL, recv_play, NULL);
 	pthread_create(&rec_send_tid, NULL, rec_send, NULL);
@@ -267,15 +279,20 @@ void get_my_ip_address(char *ip_addr, char *host_name) {
 }
 
 gboolean check_if_call_ended() {
-	int error = 0;
-	socklen_t len = sizeof (error);
-	int retval = getsockopt (s, SOL_SOCKET, SO_ERROR, &error, &len);
-	if (retval != 0 && was_connected == 1) {
+	// int error = 0;
+	// socklen_t len = sizeof (error);
+	// int retval = getsockopt (s, SOL_SOCKET, SO_ERROR, &error, &len);
+	char data = 0x1;
+	int n = send(s, &data, 1, 0);
+	printf("n= %d, was_connected = %d\n", n, was_connected);
+	
+	if (n != 1 && was_connected == 1) {
 		printf("Socket closed\n");
 		gtk_widget_destroy(dialog);
 		pthread_cancel(rec_send_tid);
 		pthread_cancel(recv_play_tid);
 		was_connected = 0;
+		socket_OK = 0;
 	}
 	return G_SOURCE_CONTINUE;
 }
@@ -292,6 +309,8 @@ int main(int argc, char **argv) {
 	// Start server, listen on port 60000
 	pthread_create(&server_tid, NULL, server_start, NULL);
 	// server_start();
+
+	signal(SIGPIPE, sigpipe_handler);
 
 	g_timeout_add_seconds(3, check_if_call_ended, NULL);
 
