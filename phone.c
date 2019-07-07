@@ -103,7 +103,7 @@ gboolean incoming_call_dialog() {
 	gtk_container_add(GTK_CONTAINER(content_area), label);
 	gtk_widget_show_all(dialog);
 	printf("incoming_call_dialog displayed\n");
-	return G_SOURCE_CONTINUE;
+	return G_SOURCE_REMOVE;
 }
 
 void outbound_call_dialog(GtkWindow *parent, gchar *message) {
