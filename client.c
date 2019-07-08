@@ -173,7 +173,7 @@ void user_input_loop() {
 
 void *control() {
 	// initiate connection to server, recv signals from socket
-	char *server_ip = "192.168.10.15";
+	char *server_ip = "192.168.10.19";
 
 	int s = socket(PF_INET, SOCK_STREAM, 0);
 	if(s==-1) { perror("socket"); exit(1); }
