@@ -140,14 +140,7 @@ gboolean cb_answer_call() {
 	
 	printf("incoming_call_dialog displayed\n");
 
-	response = gtk_dialog_run(GTK_DIALOG(dialog));
-	if (response == 1) {
-		printf("Close dialog\n");
-		gdk_threads_add_idle(cb_end_call_and_destroy_dialog, NULL);
-		// gdk_threads_add_idle(cb_answer_call, NULL);
-	}
-
-	char *data = "ANSWER";
+	char data[7] = "ANSWER";
 	int n = send(s, data, sizeof(data), 0);
 	if (n < 0) { perror("send"); }
 
@@ -155,6 +148,14 @@ gboolean cb_answer_call() {
 	was_connected = 1;
 	pthread_create(&recv_play_tid, NULL, recv_play, NULL);
 	pthread_create(&rec_send_tid, NULL, rec_send, NULL);
+
+	response = gtk_dialog_run(GTK_DIALOG(dialog));
+	if (response == 1) {
+		printf("Close dialog\n");
+		gdk_threads_add_idle(cb_end_call_and_destroy_dialog, NULL);
+		// gdk_threads_add_idle(cb_answer_call, NULL);
+	}
+
 	return G_SOURCE_REMOVE;
 }
 
