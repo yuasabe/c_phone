@@ -137,8 +137,6 @@ gboolean cb_answer_call() {
 	// Add the label, and show everything we've added
 	gtk_container_add(GTK_CONTAINER(content_area), label);
 	gtk_widget_show_all(dialog);
-
-	was_connected = 1;
 	
 	printf("incoming_call_dialog displayed\n");
 
@@ -154,6 +152,7 @@ gboolean cb_answer_call() {
 	if (n < 0) { perror("send"); }
 
 	seconds = time(NULL);
+	was_connected = 1;
 	pthread_create(&recv_play_tid, NULL, recv_play, NULL);
 	pthread_create(&rec_send_tid, NULL, rec_send, NULL);
 	return G_SOURCE_REMOVE;
@@ -213,7 +212,7 @@ void outbound_call_dialog(GtkWindow *parent, gchar *message) {
 	gtk_container_add(GTK_CONTAINER(content_area), label);
 	gtk_widget_show_all(dialog);
 
-	char data[10];
+	char data[7];
 	int n = recv(s, data, sizeof(data), 0);
 	if (n < 0) { perror("recv"); }
 
@@ -316,9 +315,9 @@ void cb_client_call(GtkWidget *widget) {
 	
 	printf("socket : %d\n", s);
 
-	char *data = "CALL";
-	int n = send(s, data, sizeof(data), 0);
-	if (n < 0 ) { perror("send"); }
+	// char *data = "CALL";
+	// int n = send(s, data, sizeof(data), 0);
+	// if (n < 0 ) { perror("send"); }
 
 	// pthread_create(&recv_play_tid, NULL, recv_play, NULL);
 	// pthread_create(&rec_send_tid, NULL, rec_send, NULL);
