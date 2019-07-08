@@ -19,6 +19,7 @@ gcc phone2.c -o phone2 $(pkg-config --cflags --libs gtk+-3.0)
 #include <gio/gio.h>
 #include <pthread.h>
 #include <time.h>
+#include <math.h>
 
 GtkWidget *window;
 GtkWidget *button1;
@@ -35,6 +36,7 @@ GtkWidget *dialog;
 void cb_client_call(GtkWidget *widget);
 
 int s;
+int call_handler_id, end_call_handler_id;
 int was_connected = 0;
 int socket_OK = 0;
 time_t seconds = 0;
@@ -151,6 +153,7 @@ gboolean cb_answer_call() {
 	int n = send(s, data, sizeof(data), 0);
 	if (n < 0) { perror("send"); }
 
+	seconds = time(NULL);
 	pthread_create(&recv_play_tid, NULL, recv_play, NULL);
 	pthread_create(&rec_send_tid, NULL, rec_send, NULL);
 	return G_SOURCE_REMOVE;
@@ -176,7 +179,7 @@ gboolean incoming_call_dialog() {
 	gtk_container_add(GTK_CONTAINER(content_area), label);
 	gtk_widget_show_all(dialog);
 
-	was_connected = 1;
+	// was_connected = 1;
 	
 	printf("incoming_call_dialog displayed\n");
 
@@ -216,6 +219,9 @@ void outbound_call_dialog(GtkWindow *parent, gchar *message) {
 
 	if (strcmp(data, "ANSWER") == 0) {
 		printf("CALL ANSWERED\n");
+		seconds = time(NULL);
+		pthread_create(&recv_play_tid, NULL, recv_play, NULL);
+		pthread_create(&rec_send_tid, NULL, rec_send, NULL);
 	} else {
 		printf("Close dialog\n");
 		gtk_widget_destroy(dialog);
@@ -311,7 +317,7 @@ void cb_client_call(GtkWidget *widget) {
 	printf("socket : %d\n", s);
 
 	char *data = "CALL";
-	int n = send(s, data, sizef(data), 0);
+	int n = send(s, data, sizeof(data), 0);
 	if (n < 0 ) { perror("send"); }
 
 	// pthread_create(&recv_play_tid, NULL, recv_play, NULL);
